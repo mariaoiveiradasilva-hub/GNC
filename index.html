@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GMC Sport – Produção</title>
+<style>
+:root{--bg:#f4f6f8;--cd:#fff;--tx:#1b1f24;--mu:#667085;--ac:#0b6b4f;--bd:#dde1e6;--wa:#b45309;--rd:#b42318;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111418;--cd:#1a1f26;--tx:#e8ebef;--mu:#9aa3ad;--ac:#3ecf9a;--bd:#2c333c;--wa:#f5a524;--rd:#ff6b5e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111418;--cd:#1a1f26;--tx:#e8ebef;--mu:#9aa3ad;--ac:#3ecf9a;--bd:#2c333c;--wa:#f5a524;--rd:#ff6b5e;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{max-width:760px;margin:0 auto;padding:12px}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+h2,h3{margin:0 0 8px}label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}
+input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+input[type=radio]{width:auto}.rd{display:flex;gap:16px}.rd label{display:flex;gap:6px;align-items:center;margin:0;color:var(--tx);font-size:16px}
+button{font:inherit;padding:10px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--cd);color:var(--tx);cursor:pointer}
+.pri{background:var(--ac);color:#fff;border-color:var(--ac);margin-top:12px;width:100%}.dg{color:var(--rd)}
+.seg,.tabs,.top{display:flex;gap:6px}.seg button,.tabs button{flex:1}.on{background:var(--ac)!important;color:#fff!important}
+.top{justify-content:space-between;align-items:center;margin-bottom:10px}.err{color:var(--rd);min-height:1em}
+.st{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.st div{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:10px}
+.st small{display:block;color:var(--mu)}.st b{font-size:17px}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 4px;text-align:left;border-bottom:1px solid var(--bd);font-size:14px}
+.w{overflow-x:auto}.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal span{font-size:12px;color:var(--mu)}.cal i{display:block}.cal b{display:block;padding:8px 0;border:1px solid var(--bd);border-radius:8px;font-weight:600;cursor:pointer;min-height:48px}
+.cal b small{display:block;font-size:12px;color:var(--ac);min-height:1em}.cal .has{background:color-mix(in srgb,var(--ac) 14%,transparent)}.cal .sel{outline:2px solid var(--ac)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd)}
+.tg{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--bd)}.pg{color:var(--ac)}.pe{color:var(--wa)}
+</style></head><body><div id="app"></div>
+<script>
+const $=s=>document.querySelector(s);
+const S={boss:null,cfg:{valor:0},users:[],prods:[],closes:[],me:null,sel:null,day:null,tab:'painel',lt:'op',ready:false,err:'',ym:new Date(new Date().getFullYear(),new Date().getMonth(),1)};
+let db=null;
+try{S.me=JSON.parse(localStorage.getItem('gmc_me'))}catch(e){}
+if(S.me&&S.me.id)S.sel=S.me.id;
+const save=()=>{try{localStorage.setItem('gmc_me',JSON.stringify(S.me))}catch(e){}};
+const R=n=>'R$ '+(+n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function H(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('gmc:'+s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const dig=s=>String(s).replace(/\D/g,''),norm=s=>String(s).trim().toLowerCase();
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const br=k=>k.split('-').reverse().join('/');
+const tot=l=>l.reduce((a,p)=>a+p.q*p.v,0),mine=id=>S.prods.filter(p=>p.u==id);
+const resumo=id=>{const l=mine(id);return{q:l.filter(p=>!p.pago).reduce((a,p)=>a+p.q,0),t:tot(l),pe:tot(l.filter(p=>!p.pago)),re:tot(l.filter(p=>p.pago))}};
+const msg=t=>{const m=$('#msg');if(m)m.textContent=t};
+const logout=()=>{S.me=null;S.sel=null;save();render(1)};
+function render(f){const a=document.activeElement;if(!f&&a&&/INPUT|SELECT/.test(a.tagName)&&$('#app').contains(a))return;
+ $('#app').innerHTML=!S.me?vLogin():vMain()}
+
+function vLogin(){
+ if(S.err)return`<div class=card>${esc(S.err)}</div>`;
+ if(!S.ready)return'<div class=card>Carregando…</div>';
+ const ch=S.lt=='ch';
+ return`<div class=card><h2>GMC Sport</h2><div class=seg><button class="${ch?'':'on'}" onclick="S.lt='op';render(1)">Operador</button><button class="${ch?'on':''}" onclick="S.lt='ch';render(1)">Chefe</button></div>`+
+ (ch?`${S.boss?'':'<p>Primeiro acesso: crie a conta do Chefe.</p>'}<label>E-mail ou celular</label><input id=l1 autocomplete=username><label>Senha</label><input id=l2 type=password><button class=pri onclick="${S.boss?'loginBoss()':'setupBoss()'}">${S.boss?'Entrar':'Criar conta do Chefe'}</button>`
+ :`<label>Nome</label><input id=l1><label>Telefone</label><input id=l3 inputmode=tel><label>Senha</label><input id=l2 type=password><button class=pri onclick="loginOp()">Entrar</button>`)+`<p id=msg class=err></p></div>`}
+async function setupBoss(){const l=$('#l1').value.trim(),p=$('#l2').value;if(!l||p.length<4)return msg('Informe login e senha (mínimo 4 caracteres).');
+ await db.doc('app/boss').set({login:norm(l),h:await H(p)});S.me={r:'ch'};save();render(1)}
+async function loginBoss(){const h=await H($('#l2').value);if(S.boss&&S.boss.login==norm($('#l1').value)&&S.boss.h==h){S.me={r:'ch'};save();render(1)}else msg('Login ou senha incorretos.')}
+async function loginOp(){const n=norm($('#l1').value),t=dig($('#l3').value),h=await H($('#l2').value);
+ const u=S.users.find(u=>norm(u.nome)==n&&u.tel==t&&u.h==h);if(u){S.me={r:'op',id:u.id};S.sel=u.id;save();render(1)}else msg('Dados incorretos.')}
+
+function vMain(){
+ const ch=S.me.r=='ch';if(ch&&!S.users.some(u=>u.id==S.sel))S.sel=S.users[0]?S.users[0].id:null;
+ let h=`<div class=top><b>GMC Sport · ${ch?'Chefe':esc((S.users.find(u=>u.id==S.me.id)||{}).nome||'Operador')}</b><button onclick="logout()">Sair</button></div>`;
+ if(!ch)return h+vCal();
+ h+=`<div class=tabs>${[['painel','Painel'],['cal','Calendário'],['us','Usuários']].map(t=>`<button class="${S.tab==t[0]?'on':''}" onclick="S.tab='${t[0]}';render(1)">${t[1]}</button>`).join('')}</div><div style="height:12px"></div>`;
+ return h+(S.tab=='painel'?vPainel():S.tab=='cal'?vCal():vUsers())}
+
+function vPainel(){
+ const rows=S.users.map(u=>{const r=resumo(u.id);return`<tr onclick="S.sel='${u.id}';S.tab='cal';render(1)" style="cursor:pointer"><td>${esc(u.nome)}<br><small>${esc(u.setor)}</small></td><td>${r.q}</td><td class=pe>${R(r.pe)}</td><td class=pg>${R(r.re)}</td></tr>`}).join('');
+ const cl=[...S.closes].sort((a,b)=>b.em>a.em?1:-1).map(c=>`<div class=row><span>Quinzena ${esc(c.lab)}</span><span>${R(c.total)} · ${br(c.em)}</span></div>`).join('');
+ return`<div class=card><label>Valor por bloquinho (igual para todos)</label><div style="display:flex;gap:8px"><input id=vl inputmode=decimal value="${S.cfg.valor||''}" placeholder="4,00"><button onclick="setValor()">Salvar</button></div></div>
+<div class=card><h3>Resumo</h3><div class=w><table><tr><th>Usuário</th><th>Bloq. pend.</th><th>Pendente</th><th>Recebido</th></tr>${rows||'<tr><td colspan=4>Nenhum usuário cadastrado.</td></tr>'}</table></div>
+<button class=pri onclick="fechar()">Fechar quinzena</button></div>
+<div class=card><h3>Quinzenas fechadas</h3>${cl||'<small>Nenhuma ainda.</small>'}</div>`}
+async function setValor(){const v=parseFloat($('#vl').value.replace(',','.'));if(!(v>0))return alert('Valor inválido.');await db.doc('app/cfg').set({valor:v});alert('Valor salvo. Vale para os próximos lançamentos.')}
+async function fechar(){const pend=S.prods.filter(p=>!p.pago);if(!pend.length)return alert('Não há valores pendentes.');
+ if(!confirm('Fechar a quinzena? Todo o pendente ('+R(tot(pend))+') será marcado como recebido.'))return;
+ const d=new Date(),m=String(d.getMonth()+1).padStart(2,'0'),a=d.getDate()<=15?'01-15':'16-'+new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+ const c=await db.collection('closes').add({em:ymd(d),lab:a+'/'+m,total:tot(pend)});
+ await Promise.all(pend.map(p=>db.doc('prod/'+p.id).update({pago:true,cx:c.id})))}
+
+function vCal(){
+ const ch=S.me.r=='ch',u=S.users.find(x=>x.id==S.sel);
+ if(!u)return'<div class=card>Cadastre um usuário na aba Usuários.</div>';
+ const y=S.ym.getFullYear(),m=S.ym.getMonth(),first=new Date(y,m,1).getDay(),n=new Date(y,m+1,0).getDate(),r=resumo(u.id),L=mine(u.id);
+ let g=['D','S','T','Q','Q','S','S'].map(x=>`<span>${x}</span>`).join('');for(let i=0;i<first;i++)g+='<i></i>';
+ for(let d=1;d<=n;d++){const k=ymd(new Date(y,m,d)),q=L.filter(p=>p.d==k).reduce((a,p)=>a+p.q,0);
+  g+=`<b class="${q?'has ':''}${S.day==k?'sel':''}" onclick="S.day='${k}';render(1)">${d}<small>${q||''}</small></b>`}
+ const mes=S.ym.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+ let dp='';if(S.day){const E=L.filter(p=>p.d==S.day);
+  dp=`<div class=card><h3>${br(S.day)}</h3>${E.map(p=>`<div class=row><span>${p.q} bloq. × ${R(p.v)} = <b>${R(p.q*p.v)}</b> <span class="tg ${p.pago?'pg':'pe'}">${p.pago?'recebido':'pendente'}</span></span>${ch&&!p.pago?`<button class=dg onclick="delProd('${p.id}')">Excluir</button>`:''}</div>`).join('')||'<small>Sem produção neste dia.</small>'}
+  ${ch?`<label>Quantidade de bloquinhos</label><input id=q type=number min=1 inputmode=numeric><button class=pri onclick="addProd()">Lançar produção</button>`:''}</div>`}
+ return`${ch?`<div class=card><label>Usuário</label><select onchange="S.sel=this.value;S.day=null;render(1)">${S.users.map(x=>`<option value="${x.id}" ${x.id==S.sel?'selected':''}>${esc(x.nome)} (${esc(x.setor)})</option>`).join('')}</select></div>`:''}
+<div class=st><div><small>Total</small><b>${R(r.t)}</b></div><div><small>Pendente</small><b class=pe>${R(r.pe)}</b></div><div><small>Recebido</small><b class=pg>${R(r.re)}</b></div></div>
+<div class=card><div class=top><button onclick="mv(-1)">‹</button><b style="text-transform:capitalize">${mes}</b><button onclick="mv(1)">›</button></div><div class=cal>${g}</div></div>${dp}
+${ch&&r.pe>0?`<button class=pri onclick="payUser('${u.id}')">Marcar pendente de ${esc(u.nome)} como recebido</button>`:''}`}
+function mv(d){S.ym=new Date(S.ym.getFullYear(),S.ym.getMonth()+d,1);S.day=null;render(1)}
+async function addProd(){const q=parseInt($('#q').value);if(!(q>0))return alert('Informe uma quantidade válida.');
+ if(!(S.cfg.valor>0))return alert('Defina o valor por bloquinho no Painel antes de lançar.');
+ await db.collection('prod').add({u:S.sel,d:S.day,q,v:+S.cfg.valor,pago:false,at:Date.now()})}
+const delProd=async id=>{if(confirm('Excluir este lançamento?'))await db.doc('prod/'+id).delete()};
+async function payUser(id){const p=mine(id).filter(x=>!x.pago);if(!confirm('Marcar '+R(tot(p))+' como recebido?'))return;await Promise.all(p.map(x=>db.doc('prod/'+x.id).update({pago:true})))}
+
+function vUsers(){
+ return`<div class=card><h3>Novo usuário</h3><label>Nome completo</label><input id=un><label>Telefone (com DDD)</label><input id=ut inputmode=tel><label>Senha</label><input id=up type=text autocomplete=off>
+<label>Setor</label><div class=rd><label><input type=radio name=st value=Selado>Selado</label><label><input type=radio name=st value=Embalado>Embalado</label></div><button class=pri onclick="addUser()">Cadastrar</button></div>
+<div class=card><h3>Usuários</h3>${S.users.map(u=>`<div class=row><span>${esc(u.nome)}<br><small>${esc(u.setor)} · ${esc(u.tel)}</small></span><button class=dg onclick="delUser('${u.id}')">Excluir</button></div>`).join('')||'<small>Nenhum ainda.</small>'}</div>`}
+async function addUser(){const n=$('#un').value.trim(),t=dig($('#ut').value),p=$('#up').value,s=(document.querySelector('input[name=st]:checked')||{}).value;
+ if(!n||t.length<10||p.length<4||!s)return alert('Preencha nome, telefone com DDD, senha (mínimo 4) e setor.');
+ if(S.users.some(u=>norm(u.nome)==norm(n)&&u.tel==t))return alert('Usuário já cadastrado.');
+ await db.collection('users').add({nome:n,tel:t,h:await H(p),setor:s});render(1)}
+async function delUser(id){if(!confirm('Excluir o usuário e todos os lançamentos dele?'))return;
+ await Promise.all(mine(id).map(p=>db.doc('prod/'+p.id).delete()));await db.doc('users/'+id).delete()}
+
+(async()=>{
+ try{db=await window.claude.use('db')}catch(e){}
+ if(!db){S.err='Banco de dados indisponível. Abra o link entrando na sua conta Claude.';render(1);return}
+ const E=()=>{S.err='Sem permissão para acessar os dados. Peça ao dono para liberar seu acesso.';render(1)};
+ db.doc('app/boss').onSnapshot(s=>{S.boss=s.exists?s.data():null;S.ready=true;render()},E);
+ db.doc('app/cfg').onSnapshot(s=>{S.cfg=s.exists?s.data():{valor:0};render()},E);
+ db.collection('users').onSnapshot(q=>{S.users=q.docs.map(d=>({id:d.id,...d.data()}));render()},E);
+ db.collection('prod').onSnapshot(q=>{S.prods=q.docs.map(d=>({id:d.id,...d.data()}));render()},E);
+ db.collection('closes').onSnapshot(q=>{S.closes=q.docs.map(d=>({id:d.id,...d.data()}));render()},E);
+})();
+render(1);
+</script></body></html>
