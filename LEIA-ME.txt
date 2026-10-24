@@ -1,0 +1,11 @@
+GMC Sport - Controle de Produção
+
+Arquivos:
+- index.html : o site completo (uma página só)
+
+Versão online (dados compartilhados entre aparelhos):
+https://claude.ai/artifact/MKcn3HgUv3sKNzgNkKe5Y1
+
+Atenção: o banco de dados compartilhado só funciona nessa versão online, aberta
+com uma conta Claude. Fora do Claude, a página abre, mas mostra aviso de banco indisponível.
+Para uso real em hospedagem própria, falta o back-end (FastAPI + PostgreSQL).
