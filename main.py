@@ -5,9 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .config import settings
-from .database import Base, SessionLocal, engine
-from .routers import auth, config, pagamentos, producao, usuarios
+from config import settings
+from database import Base, SessionLocal, engine
+from routers import auth, config, pagamentos, producao, usuarios
 
 
 @asynccontextmanager
